@@ -5,12 +5,13 @@ output:
   flexdashboard::flex_dashboard:
     orientation: row
     social: menu
-    source_code: embed
+    source_code: https://github.com/Enchufa2/irpf
 runtime: shiny
 ---
 
 ```{r setup, include=FALSE}
 library(shinyBS)
+library(shinyWidgets)
 library(plotly)
 library(DT)
 
@@ -116,7 +117,7 @@ bsCollapse(
   multiple=TRUE, open=c("Salario bruto máximo \u2304", "Tramos IRPF \u2304"),
   bsCollapsePanel(
     "Salario bruto máximo \u2304",
-    shinyWidgets::sliderTextInput("xmax", NULL, xval, selected=200, post=" k€")),
+    sliderTextInput("xmax", NULL, xval, selected=200, post=" k€")),
   bsCollapsePanel(
     "Tramos IRPF \u2304",
     "Doble click sobre una celda permite editar el valor.",
