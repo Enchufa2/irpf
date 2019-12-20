@@ -1,0 +1,170 @@
+---
+title: "Calculadora del IRPF"
+author: "Iñaki Úcar"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: row
+    social: menu
+    source_code: embed
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(shinyBS)
+library(plotly)
+library(DT)
+
+################################################################################
+# Parámetros por defecto
+################################################################################
+
+pm <- list(ss.tipo=6.35, ss.bases=c(1050, 4070), smi=1050,
+           breduc=5565, treduc=c(13115, 16825), gastos=2000, minpf=5550)
+
+df <- data.frame(
+  Base = c( 0, 12450, 20200, 35200, 60000),
+  Tipo = c(19,    24,    30,    37,    45))
+
+################################################################################
+# Reactivos
+################################################################################
+
+tramos <- reactiveVal(df)
+
+conf <- reactiveValues(
+  yaxis = list(fixedrange=TRUE, showspikes=TRUE),
+  xaxis = list(fixedrange=TRUE, showspikes=TRUE, title="Salario anual bruto [€]"),
+  abline = list(type="line", x0=0, y0=0, line=list(color="lightgray")),
+  note = list(y=0, xanchor="right", yanchor="bottom", text="@Enchufa2",
+              font=list(size=30, color="lightgray"), showarrow=FALSE)
+)
+
+################################################################################
+# Eventos
+################################################################################
+
+observeEvent(input$reset.ss, for (i in names(pm)[1:2])
+  updateNumericInput(session, i, value=pm[[i]]))
+
+observeEvent(input$reset.otros, for (i in names(pm)[3:7])
+  updateNumericInput(session, i, value=pm[[i]]))
+
+observeEvent(input$reset.tabla, tramos(df))
+
+observeEvent(input$tramos_cell_edit, {
+  info <- input$tramos_cell_edit
+  info$col <- info$col + 1
+  tramos(editData(tramos(), info, "tramos"))
+})
+
+observeEvent(input$xmax, {
+  conf$xaxis$range <- c(0, input$xmax*1e3+1e3)
+  conf$abline$x1 <- conf$abline$y1 <- conf$note$x <- input$xmax*1e3
+})
+
+################################################################################
+# Funciones
+################################################################################
+
+# Dado el bruto x, devuelve la cotización a la seguridad social en euros
+css <- function(x, tipo=input$ss.tipo/100, bases=input$ss.bases) {
+  bases <- bases * 12
+  xx <- pmin(bases[2], pmax(bases[1], x))
+  xx * tipo
+}
+
+# Dado el bruto x, devuelve la retención sobre la base imponible en tanto por 1
+tipo <- function(x, tramos, breduc=input$breduc, treduc=input$treduc, 
+                 gastos=input$gastos, minpf=input$minpf) {
+  # descuento cuota seguridad social
+  x <- x - css(x)
+  
+  # reducción por obtención de rendimientos del trabajo
+  pos <- findInterval(x, treduc)
+  xx <- x - ifelse(
+    pos == 0, breduc, ifelse(pos == 1, breduc - 1.5 * (x - treduc[1]), 0))
+  
+  # gastos
+  xx <- pmax(0, xx - gastos)
+  
+  # tipo base liquidable general
+  pos <- findInterval(xx, tramos$Base)
+  irpf1 <- sapply(seq_along(xx), function(i)
+    sum(diff(c(tramos$Base[1:pos[i]], xx[i])) * tramos$Tipo[1:pos[i]] / 100))
+  
+  # tipo mínimo personal y familiar
+  pos <- findInterval(minpf, tramos$Base)
+  irpf2 <- sum(diff(c(tramos$Base[1:pos], minpf)) * tramos$Tipo[1:pos] / 100)
+  
+  # tipo aplicable
+  irpf <- pmax(0, irpf1 - irpf2) / x
+  replace(irpf, is.nan(irpf), 0)
+}
+
+# Dado el bruto x, devuelve el salario neto en euros
+neto <- function(x, tramos, ...) (x - css(x)) * (1 - tipo(x, tramos, ...))
+```
+
+## Sidebar {.sidebar data-width=300}
+
+```{r}
+xval <- c(seq(20, 90, 10), seq(100, 1000, 100), 2000)
+
+span()
+
+bsCollapse(
+  multiple=TRUE, open=c("Salario bruto máximo \u2304", "Tramos IRPF \u2304"),
+  bsCollapsePanel(
+    "Salario bruto máximo \u2304",
+    shinyWidgets::sliderTextInput("xmax", NULL, xval, selected=200, post=" k€")),
+  bsCollapsePanel(
+    "Tramos IRPF \u2304",
+    "Doble click sobre una celda permite editar el valor.",
+    DTOutput("tramos"),
+    actionLink("reset.tabla", "Reset")),
+  bsCollapsePanel(
+    "Seguridad Social \u2304",
+    numericInput("ss.tipo", "Tipo cotización [%]:", pm$ss.tipo, min=0, max=10, step=0.05),
+    sliderInput("ss.bases", "Bases cotización [€]:", 800, 6e3, pm$ss.bases, step=10),
+    actionLink("reset.ss", "Reset")),
+  bsCollapsePanel(
+    "Otros parámetros \u2304",
+    numericInput("smi", "Salario Mínimo Interprofesional [€]:", pm$smi, min=0, step=50),
+    "Reducción rendimientos del trabajo",
+    numericInput("breduc", "Base [€]:", pm$breduc, 0, 1e4, step=10),
+    sliderInput("treduc", "Tramos [€]:", 1e4, 2e4, pm$treduc, step=5),
+    numericInput("gastos", "Gastos [€]:", pm$gastos, 0, 5e3, step=100),
+    numericInput("minpf", "Mínimo personal y familiar [€]:", pm$minpf, 0, 1e4, step=50),
+    actionLink("reset.otros", "Reset"))
+)
+
+output$tramos <- renderDT({
+  datatable(tramos(), options=list(dom="t", ordering=FALSE), rownames=NULL,
+            colnames=c("Base [€]", "Retención [%]"), editable=TRUE) %>%
+  formatCurrency(1, currency="", digits=0, mark=" ")
+})
+```
+
+## Main
+
+### Tipo aplicable de IRPF en función del salario bruto
+
+```{r}
+renderPlotly({
+  x <- seq(input$smi*12, input$xmax*1e3, 100)
+  plot_ly() %>% add_lines(x, 100*tipo(x, tramos())) %>% layout(
+    xaxis=conf$xaxis, hovermode="x", annotations=conf$note,
+    yaxis=c(conf$yaxis, title="Tipo retención IRPF [%]", tickformat=".2f"))
+})
+```
+
+### Salario neto en función del salario bruto
+
+```{r}
+renderPlotly({
+  x <- seq(input$smi*12, input$xmax*1e3, 100)
+  plot_ly() %>% add_lines(x, neto(x, tramos())) %>% layout(
+    xaxis=conf$xaxis, hovermode="x", annotations=conf$note, shapes=conf$abline,
+    yaxis=c(conf$yaxis, title="Salario anual neto [€]"))
+})
+```
