@@ -5,8 +5,8 @@ account: enchufa2
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 1614256
-bundleId: 2684107
+bundleId: 2685512
 url: https://enchufa2.shinyapps.io/irpf/
-when: 1576870677.80682
+when: 1576954607.52068
 asMultiple: FALSE
 asStatic: FALSE

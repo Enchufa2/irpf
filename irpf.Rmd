@@ -104,9 +104,13 @@ tipo <- function(x, tramos, breduc=input$breduc, treduc=input$treduc,
 
 # Dado el bruto x, devuelve el salario neto en euros
 neto <- function(x, tramos, ...) (x - css(x)) * (1 - tipo(x, tramos, ...))
+
+# Dado el bruto x, devuelve el tipo marginal de IRPF
+tipo_marginal <- function(x, tramos, ...)
+  (x - css(x)) * tipo(x, tramos, ...) - (x-1 - css(x-1)) * tipo(x-1, tramos, ...)
 ```
 
-## Sidebar {.sidebar data-width=300}
+## Configuración {.sidebar data-width=300}
 
 ```{r}
 xval <- c(seq(20, 90, 10), seq(100, 1000, 100), 2000)
@@ -146,16 +150,18 @@ output$tramos <- renderDT({
 })
 ```
 
-## Main
+## Gráficas
 
-### Tipo aplicable de IRPF en función del salario bruto
+### Tipo aplicable en función del salario bruto
 
 ```{r}
 renderPlotly({
   x <- seq(input$smi*12, input$xmax*1e3, 100)
-  plot_ly() %>% add_lines(x, 100*tipo(x, tramos())) %>% layout(
-    xaxis=conf$xaxis, hovermode="x", annotations=conf$note,
-    yaxis=c(conf$yaxis, title="Tipo retención IRPF [%]", tickformat=".2f"))
+  plot_ly() %>% add_lines(x, 100*tipo(x, tramos()), name="Retención") %>%
+    add_lines(x, 100*tipo_marginal(x, tramos()), name="Tipo marginal") %>%
+    layout(xaxis=conf$xaxis, hovermode="x", annotations=conf$note,
+           yaxis=c(conf$yaxis, title="IRPF [%]", tickformat=".2f"),
+           legend=list(x=1, y=1, xanchor="right"))
 })
 ```
 
@@ -164,8 +170,8 @@ renderPlotly({
 ```{r}
 renderPlotly({
   x <- seq(input$smi*12, input$xmax*1e3, 100)
-  plot_ly() %>% add_lines(x, neto(x, tramos())) %>% layout(
-    xaxis=conf$xaxis, hovermode="x", annotations=conf$note, shapes=conf$abline,
-    yaxis=c(conf$yaxis, title="Salario anual neto [€]"))
+  plot_ly() %>% add_lines(x, neto(x, tramos())) %>%
+    layout(xaxis=conf$xaxis, hovermode="x", annotations=conf$note,
+           yaxis=c(conf$yaxis, title="Salario anual neto [€]"), shapes=conf$abline)
 })
 ```
