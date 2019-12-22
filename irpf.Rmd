@@ -19,7 +19,7 @@ library(DT)
 # Parámetros por defecto
 ################################################################################
 
-pm <- list(ss.tipo=6.35, ss.bases=c(1050, 4070), smi=1050,
+pm <- list(ss.tipo=6.35, ss.bases=c(1050, 4070), smi=12600,
            breduc=5565, treduc=c(13115, 16825), gastos=2000, minpf=5550)
 
 df <- data.frame(
@@ -156,7 +156,7 @@ output$tramos <- renderDT({
 
 ```{r}
 renderPlotly({
-  x <- seq(input$smi*12, input$xmax*1e3, 100)
+  x <- seq(input$smi, input$xmax*1e3, 100)
   plot_ly() %>% add_lines(x, 100*tipo(x, tramos()), name="Retención") %>%
     add_lines(x, 100*tipo_marginal(x, tramos()), name="Tipo marginal") %>%
     layout(xaxis=conf$xaxis, hovermode="x", annotations=conf$note,
@@ -169,7 +169,7 @@ renderPlotly({
 
 ```{r}
 renderPlotly({
-  x <- seq(input$smi*12, input$xmax*1e3, 100)
+  x <- seq(input$smi, input$xmax*1e3, 100)
   plot_ly() %>% add_lines(x, neto(x, tramos())) %>%
     layout(xaxis=conf$xaxis, hovermode="x", annotations=conf$note,
            yaxis=c(conf$yaxis, title="Salario anual neto [€]"), shapes=conf$abline)
