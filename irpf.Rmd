@@ -19,7 +19,7 @@ library(DT)
 # Parámetros por defecto
 ################################################################################
 
-pm <- list(ss.tipo=6.35, ss.bases=c(1050, 4070), smi=12600,
+pm <- list(ss.tipo=6.35, ss.bases=c(1050, 4070), smi=13300,
            breduc=5565, treduc=c(13115, 16825), gastos=2000, minpf=5550)
 
 df <- data.frame(
